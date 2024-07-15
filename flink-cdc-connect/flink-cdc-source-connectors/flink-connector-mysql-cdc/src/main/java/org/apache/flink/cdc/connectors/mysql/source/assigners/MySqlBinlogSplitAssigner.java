@@ -17,7 +17,9 @@
 
 package org.apache.flink.cdc.connectors.mysql.source.assigners;
 
+import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.TableId;
+import org.apache.flink.cdc.connectors.mysql.debezium.DebeziumUtils;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.BinlogPendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.PendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.config.MySqlSourceConfig;
@@ -26,6 +28,7 @@ import org.apache.flink.cdc.connectors.mysql.source.split.FinishedSnapshotSplitI
 import org.apache.flink.cdc.connectors.mysql.source.split.MySqlBinlogSplit;
 import org.apache.flink.cdc.connectors.mysql.source.split.MySqlSplit;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +42,8 @@ import java.util.Optional;
 public class MySqlBinlogSplitAssigner implements MySqlSplitAssigner {
 
     public static final String BINLOG_SPLIT_ID = "binlog-split";
+
+    private List<TableId> alreadyProcessedTables;
 
     private final MySqlSourceConfig sourceConfig;
 
@@ -57,10 +62,17 @@ public class MySqlBinlogSplitAssigner implements MySqlSplitAssigner {
             MySqlSourceConfig sourceConfig, boolean isBinlogSplitAssigned) {
         this.sourceConfig = sourceConfig;
         this.isBinlogSplitAssigned = isBinlogSplitAssigned;
+        this.alreadyProcessedTables = new ArrayList<>();
     }
 
     @Override
-    public void open() {}
+    public void open() {
+        try (JdbcConnection jdbc = DebeziumUtils.openJdbcConnection(sourceConfig)) {
+            alreadyProcessedTables = DebeziumUtils.discoverCapturedTables(jdbc, sourceConfig);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Failed to discovery tables to capture", e);
+        }
+    }
 
     @Override
     public Optional<MySqlSplit> getNext() {
@@ -97,7 +109,7 @@ public class MySqlBinlogSplitAssigner implements MySqlSplitAssigner {
 
     @Override
     public PendingSplitsState snapshotState(long checkpointId) {
-        return new BinlogPendingSplitsState(isBinlogSplitAssigned);
+        return new BinlogPendingSplitsState(isBinlogSplitAssigned, alreadyProcessedTables);
     }
 
     @Override
@@ -122,7 +134,9 @@ public class MySqlBinlogSplitAssigner implements MySqlSplitAssigner {
     public void onBinlogSplitUpdated() {}
 
     @Override
-    public void addAlreadyProcessedTables(TableId tableId) {}
+    public void addAlreadyProcessedTables(TableId tableId) {
+        alreadyProcessedTables.add(tableId);
+    }
 
     @Override
     public void close() {}

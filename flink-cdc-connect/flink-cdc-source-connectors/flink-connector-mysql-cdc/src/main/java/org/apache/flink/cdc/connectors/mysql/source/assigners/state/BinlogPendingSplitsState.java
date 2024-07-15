@@ -17,6 +17,9 @@
 
 package org.apache.flink.cdc.connectors.mysql.source.assigners.state;
 
+import io.debezium.relational.TableId;
+
+import java.util.List;
 import java.util.Objects;
 
 /** A {@link PendingSplitsState} for pending binlog splits. */
@@ -24,12 +27,19 @@ public class BinlogPendingSplitsState extends PendingSplitsState {
 
     private final boolean isBinlogSplitAssigned;
 
-    public BinlogPendingSplitsState(boolean isBinlogSplitAssigned) {
+    private final List<TableId> alreadyProcessedTables;
+
+    public BinlogPendingSplitsState(boolean isBinlogSplitAssigned, List<TableId> alreadyProcessedTables) {
         this.isBinlogSplitAssigned = isBinlogSplitAssigned;
+        this.alreadyProcessedTables = alreadyProcessedTables;
     }
 
     public boolean isBinlogSplitAssigned() {
         return isBinlogSplitAssigned;
+    }
+
+    public List<TableId> getAlreadyProcessedTables() {
+        return alreadyProcessedTables;
     }
 
     @Override

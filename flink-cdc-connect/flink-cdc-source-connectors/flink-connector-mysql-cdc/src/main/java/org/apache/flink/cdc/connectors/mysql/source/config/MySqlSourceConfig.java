@@ -62,6 +62,7 @@ public class MySqlSourceConfig implements Serializable {
     private final Properties jdbcProperties;
     private final Map<ObjectPath, String> chunkKeyColumns;
     private final boolean skipSnapshotBackfill;
+    private final boolean skipNonPrimaryKeyTables;
 
     // --------------------------------------------------------------------------------------------
     // Debezium Configurations
@@ -94,7 +95,8 @@ public class MySqlSourceConfig implements Serializable {
             Properties dbzProperties,
             Properties jdbcProperties,
             Map<ObjectPath, String> chunkKeyColumns,
-            boolean skipSnapshotBackfill) {
+            boolean skipSnapshotBackfill,
+            boolean skipNonPrimaryKeyTables) {
         this.hostname = checkNotNull(hostname);
         this.port = port;
         this.username = checkNotNull(username);
@@ -121,6 +123,7 @@ public class MySqlSourceConfig implements Serializable {
         this.jdbcProperties = jdbcProperties;
         this.chunkKeyColumns = chunkKeyColumns;
         this.skipSnapshotBackfill = skipSnapshotBackfill;
+        this.skipNonPrimaryKeyTables = skipNonPrimaryKeyTables;
     }
 
     public String getHostname() {
@@ -226,6 +229,10 @@ public class MySqlSourceConfig implements Serializable {
 
     public Map<ObjectPath, String> getChunkKeyColumns() {
         return chunkKeyColumns;
+    }
+
+    public boolean isSkipNonPrimaryKeyTables() {
+        return skipNonPrimaryKeyTables;
     }
 
     public boolean isSkipSnapshotBackfill() {

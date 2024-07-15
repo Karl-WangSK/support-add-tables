@@ -114,6 +114,10 @@ public class MySqlChunkSplitter implements ChunkSplitter {
             throws Exception {
         if (!hasNextChunk()) {
             analyzeTable(partition, tableId);
+            if (splitColumn == null) {
+                this.currentSplittingTableId = null;
+                return new ArrayList<>();
+            }
             Optional<List<MySqlSnapshotSplit>> evenlySplitChunks =
                     trySplitAllEvenlySizedChunks(partition, tableId);
             if (evenlySplitChunks.isPresent()) {
@@ -147,7 +151,8 @@ public class MySqlChunkSplitter implements ChunkSplitter {
                     mySqlSchema.getTableSchema(partition, jdbcConnection, tableId).getTable();
             splitColumn =
                     ChunkUtils.getChunkKeyColumn(
-                            currentSplittingTable, sourceConfig.getChunkKeyColumns());
+                            currentSplittingTable, sourceConfig.getChunkKeyColumns(), sourceConfig.isSkipNonPrimaryKeyTables());
+            if (splitColumn == null) return;
             splitType = ChunkUtils.getChunkKeyColumnType(splitColumn);
             minMaxOfSplitColumn =
                     StatementUtils.queryMinMax(jdbcConnection, tableId, splitColumn.name());

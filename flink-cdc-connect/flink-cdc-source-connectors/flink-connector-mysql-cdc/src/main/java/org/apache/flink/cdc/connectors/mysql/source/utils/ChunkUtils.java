@@ -46,7 +46,7 @@ public class ChunkUtils {
 
     public static RowType getChunkKeyColumnType(
             Table table, Map<ObjectPath, String> chunkKeyColumns) {
-        return getChunkKeyColumnType(getChunkKeyColumn(table, chunkKeyColumns));
+        return getChunkKeyColumnType(getChunkKeyColumn(table, chunkKeyColumns, false));
     }
 
     public static RowType getChunkKeyColumnType(Column chunkKeyColumn) {
@@ -61,12 +61,16 @@ public class ChunkUtils {
      * `chunkKeyColumn` must be a column of them or else null. When the parameter `chunkKeyColumn`
      * is not set and the table has primary keys, return the first column of primary keys.
      */
-    public static Column getChunkKeyColumn(Table table, Map<ObjectPath, String> chunkKeyColumns) {
+    public static Column getChunkKeyColumn(Table table, Map<ObjectPath, String> chunkKeyColumns,  boolean isSkipNonPrimaryKeyTables) {
         List<Column> primaryKeys = table.primaryKeyColumns();
         String chunkKeyColumn = findChunkKeyColumn(table.id(), chunkKeyColumns);
         if (primaryKeys.isEmpty() && chunkKeyColumn == null) {
-            throw new ValidationException(
-                    "'scan.incremental.snapshot.chunk.key-column' must be set when the table doesn't have primary keys.");
+            if (isSkipNonPrimaryKeyTables){
+                return null;
+            } else {
+                throw new ValidationException(
+                        "'scan.incremental.snapshot.chunk.key-column' must be set when the table doesn't have primary keys.");
+            }
         }
         List<Column> searchColumns = primaryKeys.isEmpty() ? table.columns() : primaryKeys;
         if (chunkKeyColumn != null) {

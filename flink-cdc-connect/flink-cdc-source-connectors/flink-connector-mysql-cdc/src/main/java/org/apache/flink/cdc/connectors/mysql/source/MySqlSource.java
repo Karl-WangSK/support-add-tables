@@ -235,6 +235,19 @@ public class MySqlSource<T>
                             sourceConfig,
                             enumContext.currentParallelism(),
                             (HybridPendingSplitsState) checkpoint);
+        } else if (!sourceConfig.getStartupOptions().isStreamOnly()){
+            try (JdbcConnection jdbc = DebeziumUtils.openJdbcConnection(sourceConfig)) {
+                boolean isTableIdCaseSensitive = DebeziumUtils.isTableIdCaseSensitive(jdbc);
+                splitAssigner =
+                        new MySqlHybridSplitAssigner(
+                                sourceConfig,
+                                enumContext.currentParallelism(),
+                                (BinlogPendingSplitsState) checkpoint,
+                                isTableIdCaseSensitive);
+            } catch (Exception e) {
+                throw new FlinkRuntimeException(
+                        "Failed to discover captured tables for enumerator", e);
+            }
         } else if (checkpoint instanceof BinlogPendingSplitsState) {
             splitAssigner =
                     new MySqlBinlogSplitAssigner(

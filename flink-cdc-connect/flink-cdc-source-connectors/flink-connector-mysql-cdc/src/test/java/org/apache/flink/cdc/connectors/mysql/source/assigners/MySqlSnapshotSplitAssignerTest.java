@@ -129,7 +129,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND.defaultValue(),
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
                         new String[] {"shopping_cart"},
-                        "product_kind");
+                        "product_kind",
+                        false);
         assertEquals(expected, splits);
     }
 
@@ -147,7 +148,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND.defaultValue(),
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
                         new String[] {"evenly_shopping_cart"},
-                        "product_no");
+                        "product_no",
+                        false);
         assertEquals(expected, splits);
     }
 
@@ -160,7 +162,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                     CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND.defaultValue(),
                     CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
                     new String[] {"customer_card"},
-                    "errorCol");
+                    "errorCol",
+                    false);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -417,6 +420,24 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
     }
 
     @Test
+    public void testTableSkipPrimaryKey() {
+        List<String> expected =
+                Arrays.asList(
+                        "shopping_cart null [user_2]",
+                        "shopping_cart [user_2] [user_4]",
+                        "shopping_cart [user_4] [user_5]",
+                        "shopping_cart [user_5] null");
+        String tableWithoutPrimaryKey = "customers_no_pk";
+        List<String> splits = getTestAssignSnapshotSplits(
+                4,
+                CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND.defaultValue(),
+                CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
+                true,
+                new String[]{tableWithoutPrimaryKey, "shopping_cart"});
+        assertEquals(expected, splits);
+    }
+
+    @Test
     public void testEnumerateTablesLazily() {
         final MySqlSourceConfig configuration =
                 getConfig(
@@ -426,6 +447,7 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
                         new String[] {"customers_even_dist"},
                         "id",
+                        false,
                         false);
 
         final MySqlSnapshotSplitAssigner assigner =
@@ -461,7 +483,24 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                 distributionFactorUpper,
                 distributionFactorLower,
                 captureTables,
-                null);
+                null,
+                false);
+    }
+
+    private List<String> getTestAssignSnapshotSplits(
+            int splitSize,
+            double distributionFactorUpper,
+            double distributionFactorLower,
+            boolean isSkipNonPrimaryKeyTables,
+            String[] captureTables) {
+        return getTestAssignSnapshotSplits(
+                customerDatabase,
+                splitSize,
+                distributionFactorUpper,
+                distributionFactorLower,
+                captureTables,
+                null,
+                isSkipNonPrimaryKeyTables);
     }
 
     private List<String> getTestAssignSnapshotSplits(
@@ -470,7 +509,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
             double distributionFactorUpper,
             double distributionFactorLower,
             String[] captureTables,
-            String chunkKeyColumn) {
+            String chunkKeyColumn,
+            boolean isSkipNonPrimaryKeyTables) {
         MySqlSourceConfig configuration =
                 getConfig(
                         database,
@@ -479,7 +519,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                         distributionFactorLower,
                         captureTables,
                         chunkKeyColumn,
-                        false);
+                        false,
+                        isSkipNonPrimaryKeyTables);
         List<TableId> remainingTables =
                 Arrays.stream(captureTables)
                         .map(t -> database.getDatabaseName() + "." + t)
@@ -507,7 +548,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                         CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND.defaultValue(),
                         captureTables,
                         null,
-                        true);
+                        true,
+                        false);
         List<TableId> remainingTables = new ArrayList<>();
         List<TableId> alreadyProcessedTables = new ArrayList<>();
         alreadyProcessedTables.add(processedTable);
@@ -620,7 +662,8 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
             double distributionLower,
             String[] captureTables,
             String chunkKeyColumn,
-            boolean scanNewlyAddedTableEnabled) {
+            boolean scanNewlyAddedTableEnabled,
+            boolean isSkipNonPrimaryKeyTables) {
         Map<ObjectPath, String> chunkKeys = new HashMap<>();
         for (String table : captureTables) {
             chunkKeys.put(new ObjectPath(database.getDatabaseName(), table), chunkKeyColumn);
@@ -644,6 +687,7 @@ public class MySqlSnapshotSplitAssignerTest extends MySqlSourceTestBase {
                 .serverTimeZone(ZoneId.of("UTC").toString())
                 .chunkKeyColumn(chunkKeys)
                 .scanNewlyAddedTableEnabled(scanNewlyAddedTableEnabled)
+                .skipNonPrimaryKeyTables(isSkipNonPrimaryKeyTables)
                 .createConfig(0);
     }
 }

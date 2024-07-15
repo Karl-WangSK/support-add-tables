@@ -181,6 +181,7 @@ public class PendingSplitsStateSerializer implements SimpleVersionedSerializer<P
 
     private void serializeBinlogPendingSplitsState(
             BinlogPendingSplitsState state, DataOutputSerializer out) throws IOException {
+        writeTableIds(state.getAlreadyProcessedTables(), out);
         out.writeBoolean(state.isBinlogSplitAssigned());
     }
 
@@ -322,7 +323,8 @@ public class PendingSplitsStateSerializer implements SimpleVersionedSerializer<P
 
     private BinlogPendingSplitsState deserializeBinlogPendingSplitsState(DataInputDeserializer in)
             throws IOException {
-        return new BinlogPendingSplitsState(in.readBoolean());
+        List<TableId> alreadyProcessedTables = readTableIds(in);
+        return new BinlogPendingSplitsState(in.readBoolean(), alreadyProcessedTables);
     }
 
     // ------------------------------------------------------------------------------------------

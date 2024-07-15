@@ -124,6 +124,103 @@ NewlyAddedTableITCase extends MySqlSourceTestBase {
         mockBinlogExecutor.shutdown();
     }
 
+    @Test
+    public void testLatestOffsetRecover() throws Exception {
+        testLatestOffsetRecover(
+                1,
+                FailoverType.NONE,
+                FailoverPhase.NEVER,
+                "address_wenzhou",
+                "address_hangzhou",
+                "address_shanghai");
+    }
+
+    public void testLatestOffsetRecover(int parallelism, FailoverType failoverType,
+                                                   FailoverPhase failoverPhase, String... captureAddressTables) throws Exception {
+        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder.create();
+        final String savepointDirectory = temporaryFolder.newFolder().toURI().toString();
+        TestTable cityTable = new TestTable(customDatabase, "address_.*", TestTableSchemas.ADDRESS);
+
+        // step 1: create mysql tables with initial data
+        initialAddressTables(getConnection(), Arrays.asList(captureAddressTables[0]).toArray(new String[0]), false);
+        StreamExecutionEnvironment env = getStreamExecutionEnvironment(null, parallelism);
+        MySqlSource<RowData> source = MySqlSource.<RowData>builder()
+                .hostname(customDatabase.getHost())
+                .port(customDatabase.getDatabasePort())
+                .username(customDatabase.getUsername())
+                .password(customDatabase.getPassword())
+                .databaseList(customDatabase.getDatabaseName())
+                .tableList(cityTable.getTableId())
+                .deserializer(cityTable.getDeserializer())
+                .includeSchemaChanges(true)
+                .serverTimeZone("UTC")
+                .scanNewlyAddedTableEnabled(true)
+                .startupOptions(StartupOptions.latest())
+                .build();
+        DataStreamSource<RowData> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "add table in binlog phase");
+        CollectResultIterator<RowData> iterator = addCollector(env, stream);
+
+
+
+        // Execute job and validate results
+        JobClient jobClient = env.executeAsync();
+        iterator.setJobClient(jobClient);
+        // step 2: assert fetched snapshot data in this round
+        Thread.sleep(5000);
+        makeSecondPartBinlogForAddressTable(getConnection(), captureAddressTables[0], false);
+        List<String> records = fetchRowData(iterator, 1, cityTable::stringify);
+        assertThat(records)
+                .containsExactly(
+                        format("+I[417022095255614380, China, wenzhou, wenzhou West Town address 4]"));
+
+        for (int round = 1; round < captureAddressTables.length; round++) {
+            // step 3: create mysql tables with initial data during binlog phase
+            initialAddressTables(getConnection(), Arrays.asList(captureAddressTables[round]).toArray(new String[0]), false);
+
+            // step 4: assert fetched binlog data in this round
+            String cityName = captureAddressTables[round].split("_")[1];
+            if (failoverPhase == FailoverPhase.SNAPSHOT) {
+                triggerFailover(
+                        failoverType,
+                        jobClient.getJobID(),
+                        miniClusterResource.getMiniCluster(),
+                        () -> sleepMs(100));
+            }
+            records = fetchRowData(iterator, 3, cityTable::stringify);
+            assertThat(records)
+                    .containsExactlyInAnyOrder(
+                            format("+I[416874195632735147, China, %s, %s West Town address 1]", cityName, cityName),
+                            format("+I[416927583791428523, China, %s, %s West Town address 2]", cityName, cityName),
+                            format("+I[417022095255614379, China, %s, %s West Town address 3]", cityName, cityName));
+
+            // step 5: trigger savepoint
+            Thread.sleep(1000);
+            String finishedSavePointPath = triggerSavepointWithRetry(jobClient, savepointDirectory);
+            jobClient.cancel().get();
+
+            // recover from savepoint
+            env = getStreamExecutionEnvironment(finishedSavePointPath, parallelism);
+            connectedToMysql(env, cityTable);
+            jobClient = env.executeAsync();
+            iterator.setJobClient(jobClient);
+            // step 6: make some binlog for second create table, assert fetched binlog data in this round
+            makeSecondPartBinlogForAddressTable(getConnection(), captureAddressTables[round], false);
+            if (failoverPhase == FailoverPhase.BINLOG) {
+                triggerFailover(
+                        failoverType,
+                        jobClient.getJobID(),
+                        miniClusterResource.getMiniCluster(),
+                        () -> sleepMs(100));
+            }
+            records = fetchRowData(iterator, 1, cityTable::stringify);
+            assertThat(records)
+                    .containsExactly(
+                            format("+I[417022095255614380, China, %s, %s West Town address 4]", cityName, cityName));
+        }
+    }
+
 
     @Test
     public void testNewlyAddedTableForRuntimeAddTableSingleParallelism() throws Exception {

@@ -19,6 +19,7 @@ package org.apache.flink.cdc.connectors.mysql.source.assigners;
 
 import org.apache.flink.cdc.connectors.mysql.debezium.DebeziumUtils;
 import org.apache.flink.cdc.connectors.mysql.schema.MySqlSchema;
+import org.apache.flink.cdc.connectors.mysql.source.assigners.state.BinlogPendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.ChunkSplitterState;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.SnapshotPendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.config.MySqlSourceConfig;
@@ -106,6 +107,26 @@ public class MySqlSnapshotSplitAssigner implements MySqlSplitAssigner {
                 new HashMap<>(),
                 AssignerStatus.INITIAL_ASSIGNING,
                 remainingTables,
+                isTableIdCaseSensitive,
+                true,
+                ChunkSplitterState.NO_SPLITTING_TABLE_STATE);
+    }
+
+    public MySqlSnapshotSplitAssigner(
+            MySqlSourceConfig sourceConfig,
+            int currentParallelism,
+            BinlogPendingSplitsState checkpoint,
+            boolean isTableIdCaseSensitive) {
+        this(
+                sourceConfig,
+                currentParallelism,
+                checkpoint.getAlreadyProcessedTables(),
+                new ArrayList<>(),
+                new LinkedHashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                AssignerStatus.INITIAL_ASSIGNING_FINISHED,
+                new ArrayList<>(),
                 isTableIdCaseSensitive,
                 true,
                 ChunkSplitterState.NO_SPLITTING_TABLE_STATE);

@@ -183,7 +183,7 @@ public class PendingSplitsStateSerializerTest {
     }
 
     private static BinlogPendingSplitsState getTestBinlogPendingSplitsState() {
-        return new BinlogPendingSplitsState(true);
+        return new BinlogPendingSplitsState(true, new ArrayList<>());
     }
 
     private static MySqlSchemalessSnapshotSplit getTestSchemalessSnapshotSplit(

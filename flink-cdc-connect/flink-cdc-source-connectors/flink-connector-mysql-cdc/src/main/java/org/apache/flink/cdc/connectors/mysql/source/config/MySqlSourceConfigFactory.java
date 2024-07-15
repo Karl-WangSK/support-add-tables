@@ -70,6 +70,8 @@ public class MySqlSourceConfigFactory implements Serializable {
     private Map<ObjectPath, String> chunkKeyColumns = new HashMap<>();
     private boolean skipSnapshotBackfill = false;
 
+    private boolean skipNonPrimaryKeyTables = false;
+
     public MySqlSourceConfigFactory hostname(String hostname) {
         this.hostname = hostname;
         return this;
@@ -270,6 +272,11 @@ public class MySqlSourceConfigFactory implements Serializable {
         return this;
     }
 
+    public MySqlSourceConfigFactory skipNonPrimaryKeyTables(boolean skipNonPrimaryKeyTables) {
+        this.skipNonPrimaryKeyTables = skipNonPrimaryKeyTables;
+        return this;
+    }
+
     /**
      * Whether to close idle readers at the end of the snapshot phase. This feature depends on
      * FLIP-147: Support Checkpoints After Tasks Finished. The flink version is required to be
@@ -377,6 +384,7 @@ public class MySqlSourceConfigFactory implements Serializable {
                 props,
                 jdbcProperties,
                 chunkKeyColumns,
-                skipSnapshotBackfill);
+                skipSnapshotBackfill,
+                skipNonPrimaryKeyTables);
     }
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.cdc.connectors.mysql.source;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.cdc.connectors.mysql.table.StartupOptions;
 import org.apache.flink.cdc.connectors.mysql.testutils.UniqueDatabase;
 import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -46,6 +47,7 @@ public class MySqlSourceExampleTest extends MySqlSourceTestBase {
                         .serverId("5401-5404")
                         .deserializer(new JsonDebeziumDeserializationSchema())
                         .serverTimeZone("UTC")
+                        .startupOptions(StartupOptions.latest())
                         .includeSchemaChanges(true) // output the schema changes as well
                         .build();
 

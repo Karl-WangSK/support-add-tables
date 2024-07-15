@@ -17,6 +17,7 @@
 
 package org.apache.flink.cdc.connectors.mysql.source.assigners;
 
+import org.apache.flink.cdc.connectors.mysql.source.assigners.state.BinlogPendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.HybridPendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.assigners.state.PendingSplitsState;
 import org.apache.flink.cdc.connectors.mysql.source.config.MySqlSourceConfig;
@@ -76,6 +77,19 @@ public class MySqlHybridSplitAssigner implements MySqlSplitAssigner {
                 sourceConfig,
                 new MySqlSnapshotSplitAssigner(
                         sourceConfig, currentParallelism, checkpoint.getSnapshotPendingSplits()),
+                checkpoint.isBinlogSplitAssigned(),
+                sourceConfig.getSplitMetaGroupSize());
+    }
+
+    public MySqlHybridSplitAssigner(
+            MySqlSourceConfig sourceConfig,
+            int currentParallelism,
+            BinlogPendingSplitsState checkpoint,
+            boolean isTableIdCaseSensitive) {
+        this(
+                sourceConfig,
+                new MySqlSnapshotSplitAssigner(
+                        sourceConfig, currentParallelism, checkpoint, isTableIdCaseSensitive),
                 checkpoint.isBinlogSplitAssigned(),
                 sourceConfig.getSplitMetaGroupSize());
     }
