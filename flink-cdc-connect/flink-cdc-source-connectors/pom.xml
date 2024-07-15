@@ -43,7 +43,7 @@ limitations under the License.
         <module>flink-connector-vitess-cdc</module>
         <module>flink-sql-connector-db2-cdc</module>
         <module>flink-sql-connector-mongodb-cdc</module>
-        <module>flink-sql-connector-mysql-cdc</module>
+        <module>sql-mysql</module>
         <module>flink-sql-connector-oceanbase-cdc</module>
         <module>flink-sql-connector-oracle-cdc</module>
         <module>flink-sql-connector-postgres-cdc</module>
