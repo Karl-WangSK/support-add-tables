@@ -1,0 +1,4 @@
+include:
+  - project: middle/cicd
+    ref: master
+    file: '.gitlab-ci.yml'
